@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en" ng-app>
+    <head>
+        <meta charset="utf-8">
+        <title>Pouchdb test</title>
+        <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.0.7/angular.js"></script>
+        <!-- <script src="http://localhost/repositories/pouchdb/src/pouch.js"></script> -->
+        <script src="main.js"></script>
+    </head>
+    <body>
+        <section ng-controller="NotesController">
+            <header>
+                <form ng-submit="addNote()">
+                    <input id="new-note" type="text" ng-model="newNote" placeholder="Enter a note here" autofocus>
+                    <button>Add</button>
+                </form>
+            </header>
+            <section>
+                <ul id="notes">
+                    <li ng-repeat="note in notes" ng-click="removeNote(note)">{{note.body}}</li>
+                </ul>
+            </section>
+            <footer>
+                <p>Total number of notes: {{notes.length}}</p>
+            </footer>
+        </section>
+
+
+    </body>
+</html>
