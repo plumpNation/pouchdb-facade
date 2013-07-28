@@ -9,20 +9,24 @@
 var DB = function (DB, q) {
     var remoteCouch = false,
         pouchdb,
-
         _name,
 
-        _dbCallback = function (str, deferred) {
+        getDbName = function () {
+            return _name;
+        },
+
+        _dbCallback = function (description, deferred) {
             return function (error, response) {
+
                 if (error) {
                     console.error(error);
                     if (deferred) {
-                        deferred.reject(new Error(error));
+                        deferred.reject(new Error(error.error + ':' + error.reason));
                     }
                     return;
                 }
 
-                console.info(str);
+                console.info(description);
 
                 if (deferred) {
                     deferred.resolve(response);
@@ -42,7 +46,7 @@ var DB = function (DB, q) {
             _name = name;
 
             pouchdb = new DB(
-                name,
+                _name,
                 _dbCallback('Created db: ' + name, deferred)
             );
 
@@ -80,24 +84,23 @@ var DB = function (DB, q) {
          * @return {void}
          */
         getAll = function () {
-            var deferred = q.defer();
-
-            pouchdb.allDocs(
-                {
+            var deferred = q.defer(),
+                options = {
                     include_docs: true,
                     descending: true
-                },
-                _dbCallback('Got all', deferred)
-            );
+                };
+
+            pouchdb.allDocs(options, _dbCallback('Got all', deferred));
 
             return deferred.promise;
         };
 
     return {
-        'createDB': createDB,
-        'getAll'  : getAll,
-        'get'     : get,
-        'put'     : put,
-        'remove'  : remove
+        'createDB'      : createDB,
+        'getAll'        : getAll,
+        'getDbName'     : getDbName,
+        'get'           : get,
+        'put'           : put,
+        'remove'        : remove
     };
 };
