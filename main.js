@@ -7,6 +7,7 @@ var DB = (function () {
         createDB = function (name) {
             _name = name;
             pouchdb = new PouchDB(name);
+            return pouchdb;
         },
 
         _dbCallback = function (error, result) {
@@ -26,6 +27,16 @@ var DB = (function () {
             pouchdb.remove(data, _dbCallback);
         },
 
+        get = function (id) {
+            pouchdb.get(id, function (err, doc) {
+                console.log(doc);
+            });
+        },
+
+        _consoleDocs = function (err, doc) {
+            console.log(err || doc);
+        },
+
         /**
          * callback function must have (err, doc) as params
          *
@@ -38,7 +49,7 @@ var DB = (function () {
                     include_docs: true,
                     descending: true
                 },
-                callback
+                callback || _consoleDocs
             );
         };
 
@@ -53,7 +64,49 @@ var DB = (function () {
 
 // Angular stuff
 var NotesController = function ($scope) {
+
+        // @todo http://jsfiddle.net/zrrrzzt/cNVhE/
         var notes = $scope.notes = [];
+
+        $scope.pouchdb = new Pouch('notes', function (err, db) {
+
+            if (err) {
+                console.log(err);
+
+            } else {
+                db.allDocs(function (err, result) {
+                    if (err) {
+                        console.log(err);
+
+                    } else {
+                        $scope.loadNotes(result.rows);
+                    }
+                });
+            }
+        });
+
+        $scope.loadNotes = function (notes) {
+            var i;
+
+            for (i = 0; i < (notes.length - 1); i += 1) {
+                var note = notes[i];
+
+                $scope.pouchdb.get(
+                    note.id,
+                    function (err, doc) {
+                        if (err) {
+                            console.log(err);
+
+                        } else {
+                            $scope.$apply(function() {
+                                $scope.notes.push(doc);
+                            });
+                        }
+                    }
+                );
+            };
+        };
+
 
         $scope.addNote = function () {
             var newNote = $scope.newNote.trim(),
@@ -77,4 +130,4 @@ var NotesController = function ($scope) {
         DB.createDB('notes');
     };
 
-window.addEventListener('load', init, false);
+init();

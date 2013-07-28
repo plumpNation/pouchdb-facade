@@ -10,7 +10,7 @@
     <body>
         <section ng-controller="NotesController">
             <header>
-                <form ng-submit="addNote()">
+                <form id="addNote" ng-submit="addNote()">
                     <input id="new-note" type="text" ng-model="newNote" placeholder="Enter a note here" autofocus>
                     <button>Add</button>
                 </form>
