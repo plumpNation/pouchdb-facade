@@ -1,36 +1,73 @@
-var DB = (function () {
+/**
+ * @example
+ * var db = new DB(window.PouchDB, Q);
+ *
+ * @param  {PouchDB}    DB https://github.com/daleharvey/pouchdb
+ * @param  {Q} q        https://github.com/kriskowal/q
+ * @return {DB}
+ */
+var DB = function (DB, q) {
     var remoteCouch = false,
         pouchdb,
 
         _name,
 
-        createDB = function (name) {
-            _name = name;
-            pouchdb = new PouchDB(name);
-            return pouchdb;
-        },
+        _dbCallback = function (str, deferred) {
+            return function (error, response) {
+                if (error) {
+                    if (deferred) {
+                        deferred.reject(error);
+                        return;
+                    }
+                    console.error(error);
+                    return;
+                }
 
-        _dbCallback = function (error, result) {
-            if (!error) {
-                console.info('Successfully posted a todo!');
+                console.info(str);
 
-            } else {
-                console.error(error);
+                if (deferred) {
+                    deferred.resolve(response);
+                }
             }
         },
 
+        /**
+         * Creates your db for you. How nice.
+         *
+         * @param  {String} name The name you wish your db to use.
+         * @return {promise}
+         */
+        createDB = function (name) {
+            var deferred = q.defer();
+
+            _name = name;
+
+            pouchdb = new DB(
+                name,
+                _dbCallback('Created db: ' + name, deferred)
+            );
+
+            return deferred.promise;
+        },
+
         put = function (data) {
-            pouchdb.put(data, _dbCallback);
+            var deferred = q.defer();
+            pouchdb.put(data, _dbCallback('Put data', deferred));
+            return deferred.promise;
         },
 
         remove = function (data) {
-            pouchdb.remove(data, _dbCallback);
+            var deferred = q.defer();
+            pouchdb.remove(data, _dbCallback('Removed data', deferred));
+            return deferred.promise;
         },
 
         get = function (id) {
-            pouchdb.get(id, function (err, doc) {
-                console.log(doc);
-            });
+            var deferred = q.defer();
+
+            pouchdb.get(id, _dbCallback('Got data: ' + id , deferred));
+
+            return deferred.promise;
         },
 
         _consoleDocs = function (err, doc) {
@@ -43,67 +80,65 @@ var DB = (function () {
          * @param  {Function} callback
          * @return {void}
          */
-        info = function (callback) {
+        getAll = function () {
+            var deferred = q.defer();
+
             pouchdb.allDocs(
                 {
                     include_docs: true,
                     descending: true
                 },
-                callback || _consoleDocs
+                _dbCallback('Got all', deferred)
             );
+
+            return deferred.promise;
         };
 
     return {
         'createDB': createDB,
-        'info'    : info,
+        'getAll'  : getAll,
+        'get'     : get,
         'put'     : put,
         'remove'  : remove
     };
-
-}());
+};
 
 // Angular stuff
 var NotesController = function ($scope) {
 
         // @todo http://jsfiddle.net/zrrrzzt/cNVhE/
-        var notes = $scope.notes = [];
+        var notes = $scope.notes = [],
 
-        $scope.pouchdb = new Pouch('notes', function (err, db) {
+            onDbError = function (err) {
+                console.error(err);
+            },
 
-            if (err) {
-                console.log(err);
-
-            } else {
-                db.allDocs(function (err, result) {
-                    if (err) {
-                        console.log(err);
-
-                    } else {
-                        $scope.loadNotes(result.rows);
-                    }
-                });
+            onDbGetAll = function (result) {
+                $scope.loadNotes(result.rows);
             }
-        });
+
+            onDbCreated = function (db) {
+                dbHelper.getAll().then(onDbGetAll, onDbError);
+            },
+
+            onDbGet = function (doc) {
+                $scope.$apply(function () {
+                    $scope.notes.push(doc);
+                });
+            },
+
+            // I would love to use angularjs $q, however it sucks
+            // so I'm using q.js instead.
+            dbHelper = new DB(window.PouchDB, Q);
+
+        dbHelper.createDB('notes').then(onDbCreated, onDbError);
 
         $scope.loadNotes = function (notes) {
             var i;
 
             for (i = 0; i < (notes.length - 1); i += 1) {
                 var note = notes[i];
-
-                $scope.pouchdb.get(
-                    note.id,
-                    function (err, doc) {
-                        if (err) {
-                            console.log(err);
-
-                        } else {
-                            $scope.$apply(function() {
-                                $scope.notes.push(doc);
-                            });
-                        }
-                    }
-                );
+                dbHelper.get(note.id).then(onDbGet, onDbError);
             };
         };
 
@@ -117,17 +152,11 @@ var NotesController = function ($scope) {
 
             notes.push(noteData);
 
-            DB.put(noteData);
+            dbHelper.put(noteData);
         };
 
         $scope.removeNote = function (note) {
             notes.splice(notes.indexOf(note), 1);
-            DB.remove(note);
+            dbHelper.remove(note);
         };
-    },
-
-    init = function () {
-        DB.createDB('notes');
     };
-
-init();
