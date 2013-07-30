@@ -8,7 +8,7 @@
  */
 var DB = function (DB, q) {
     var remoteCouch = false,
-        pouchdb,
+        _db,
         _name,
 
         getDbName = function () {
@@ -45,7 +45,7 @@ var DB = function (DB, q) {
 
             _name = name;
 
-            pouchdb = new DB(
+            _db = new DB(
                 _name,
                 _dbCallback('Created db: ' + name, deferred)
             );
@@ -55,26 +55,39 @@ var DB = function (DB, q) {
 
         put = function (data) {
             var deferred = q.defer();
-            pouchdb.put(data, _dbCallback('Put data', deferred));
+            _db.put(data, _dbCallback('Put data', deferred));
             return deferred.promise;
         },
 
         remove = function (data) {
             var deferred = q.defer();
-            pouchdb.remove(data, _dbCallback('Removed data', deferred));
+            _db.remove(data, _dbCallback('Removed data', deferred));
             return deferred.promise;
         },
 
         get = function (id) {
             var deferred = q.defer();
 
-            pouchdb.get(id, _dbCallback('Got data: ' + id , deferred));
+            _db.get(id, _dbCallback('Got data: ' + id , deferred));
 
             return deferred.promise;
         },
 
         _consoleDocs = function (err, doc) {
             console.log(err || doc);
+        },
+
+        onChange = function (callback) {
+            var options = {
+                continuous: true,
+                // callback(change)
+                onChange  : callback
+            };
+
+            _db.info(function (err, info) {
+                options.since = info.update_seq;
+                _db.changes(options);
+            });
         },
 
         /**
@@ -87,15 +100,16 @@ var DB = function (DB, q) {
             var deferred = q.defer(),
                 options = {
                     include_docs: true,
-                    descending: true
+                    descending  : true
                 };
 
-            pouchdb.allDocs(options, _dbCallback('Got all', deferred));
+            _db.allDocs(options, _dbCallback('Got all', deferred));
 
             return deferred.promise;
         };
 
     return {
+        'onChange'      : onChange,
         'createDB'      : createDB,
         'getAll'        : getAll,
         'getDbName'     : getDbName,

@@ -2,7 +2,9 @@
  * @class Angular controller for notes list.
  * @param  {angularScope} $scope
  */
-var NotesController = function ($scope) {
+var dbUrl = 'http://localhost:5984/notes',
+
+    NotesController = function ($scope) {
 
     var notes = $scope.notes = [],
 
@@ -28,7 +30,13 @@ var NotesController = function ($scope) {
         // so I'm using q.js instead.
         dbHelper = new DB(window.PouchDB, Q);
 
-    dbHelper.createDB('notes').then(onDbCreated, onDbError);
+    dbHelper.createDB(dbUrl).then(onDbCreated, onDbError);
+
+    $scope.onDbChange = function (change) {
+        console.log(change);
+    };
+
+    dbHelper.onChange($scope.onDbChange);
 
     $scope.loadNotes = function (notes) {
         var i;
@@ -38,7 +46,6 @@ var NotesController = function ($scope) {
             dbHelper.get(note.id).then(onDbGet, onDbError);
         };
     };
-
 
     $scope.addNote = function () {
         var newNote = $scope.newNote.trim(),
