@@ -2,65 +2,65 @@
  * @class Angular controller for notes list.
  * @param  {angularScope} $scope
  */
-var dbUrl = 'http://localhost:5984/notes',
+var remoteDbUrl = 'http://localhost:5984/notes',
 
     NotesController = function ($scope) {
 
-    var notes = $scope.notes = [],
+        var notes = $scope.notes = [],
 
-        onDbError = function (err) {
-            console.error(err);
-        },
+            onDbError = function (err) {
+                console.error(err);
+            },
 
-        onDbGetAll = function (result) {
-            $scope.loadNotes(result.rows);
-        }
+            onDbGetAll = function (result) {
+                $scope.loadNotes(result.rows);
+            }
 
-        onDbCreated = function (db) {
-            dbHelper.getAll().then(onDbGetAll, onDbError);
-        },
+            onDbCreated = function (db) {
+                dbHelper.getAll().then(onDbGetAll, onDbError);
+            },
 
-        onDbGet = function (doc) {
-            $scope.$apply(function () {
-                $scope.notes.push(doc);
-            });
-        },
+            onDbGet = function (doc) {
+                $scope.$apply(function () {
+                    $scope.notes.push(doc);
+                });
+            },
 
-        // I would love to use angularjs $q, however it sucks
-        // so I'm using q.js instead.
-        dbHelper = new DB(window.PouchDB, Q);
+            // I would love to use angularjs $q, however it sucks
+            // so I'm using q.js instead.
+            dbHelper = new DB(window.PouchDB, Q, _, remoteDbUrl);
 
-    dbHelper.createDB(dbUrl).then(onDbCreated, onDbError);
+        dbHelper.createDB('notes').then(onDbCreated, onDbError);
 
-    $scope.onDbChange = function (change) {
-        console.log(change);
-    };
+        $scope.onDbChange = function (change) {
+            console.log(change);
+        };
 
-    dbHelper.onChange($scope.onDbChange);
+        dbHelper.onChange($scope.onDbChange);
 
-    $scope.loadNotes = function (notes) {
-        var i;
+        $scope.loadNotes = function (notes) {
+            var i;
 
-        for (i = 0; i < (notes.length - 1); i += 1) {
-            var note = notes[i];
-            dbHelper.get(note.id).then(onDbGet, onDbError);
+            for (i = 0; i < (notes.length - 1); i += 1) {
+                var note = notes[i];
+                dbHelper.get(note.id).then(onDbGet, onDbError);
+            };
+        };
+
+        $scope.addNote = function () {
+            var newNote = $scope.newNote.trim(),
+                noteData = {
+                    _id: new Date().toISOString(),
+                    body: newNote
+                };
+
+            notes.push(noteData);
+
+            dbHelper.put(noteData);
+        };
+
+        $scope.removeNote = function (note) {
+            notes.splice(notes.indexOf(note), 1);
+            dbHelper.remove(note);
         };
     };
-
-    $scope.addNote = function () {
-        var newNote = $scope.newNote.trim(),
-            noteData = {
-                _id: new Date().toISOString(),
-                body: newNote
-            };
-
-        notes.push(noteData);
-
-        dbHelper.put(noteData);
-    };
-
-    $scope.removeNote = function (note) {
-        notes.splice(notes.indexOf(note), 1);
-        dbHelper.remove(note);
-    };
-};
